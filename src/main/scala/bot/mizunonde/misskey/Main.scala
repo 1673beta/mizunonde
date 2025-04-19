@@ -13,11 +13,9 @@ object Main extends App {
   println(s"API URL: ${config.apiUrl}")
   println(s"API Key: ${config.apiKey}")
 
-  val system = ActorSystem(BotCore(config.apiUrl, config.apiKey), "MisskeyWaterReminder")
+  val system = ActorSystem(BotCore(config.apiUrl, config.apiKey, config.tz), "MisskeyWaterReminder")
 
   println("Bot started.")
-
-  system ! BotCore.SendPost
 
   Thread.currentThread().join()
 }

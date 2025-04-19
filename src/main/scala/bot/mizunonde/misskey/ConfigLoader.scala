@@ -6,7 +6,7 @@ import java.util.Properties
 import scala.jdk.CollectionConverters.*
 import pureconfig.*
 
-case class MisskeyConfig(apiUrl: String, apiKey: String) derives ConfigReader
+case class MisskeyConfig(apiUrl: String, apiKey: String, tz: String) derives ConfigReader
 
 object ConfigLoader {
   def loadEnv(): Unit = {
@@ -30,7 +30,8 @@ object ConfigLoader {
       case Left(error) =>
         val apiUrl = sys.env.getOrElse("MISSKEY_API_URL", System.getProperty("MISSKEY_API_URL", "http://localhost:3000"))
         val apiKey = sys.env.getOrElse("MISSKEY_API_KEY", System.getProperty("MISSKEY_API_KEY", ""))
-        MisskeyConfig(apiUrl, apiKey)
+        val tz = sys.env.getOrElse("TZ", System.getProperty("TZ", "Asia/Tokyo"))
+        MisskeyConfig(apiUrl, apiKey, tz)
     }
     config
   }

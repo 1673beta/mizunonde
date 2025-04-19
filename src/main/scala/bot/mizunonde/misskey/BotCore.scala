@@ -5,7 +5,7 @@ import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
 
 import scala.concurrent.duration.*
-import java.time.LocalDateTime
+import java.time.{LocalDateTime, ZoneId}
 import java.time.format.DateTimeFormatter
 import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.http.scaladsl.model.*
@@ -27,9 +27,10 @@ object BotCore {
   private case class PostCompleted(isSuccess: Boolean, message: String) extends Command
   case object SendPost extends Command
 
-  def apply(apiUrl: String, apiKey: String): Behavior[Command] = Behaviors.setup { context =>
+  def apply(apiUrl: String, apiKey: String, timezone: String = "Asia/Tokyo"): Behavior[Command] = Behaviors.setup { context =>
     implicit val system: ActorSystem[Nothing] = context.system
     implicit val executionContext: ExecutionContextExecutor = system.executionContext
+    val zoneId = ZoneId.of(timezone)
 
     def postToMisskey(text: String): Unit = {
       val post = MisskeyPost(text, i = apiKey)
@@ -60,7 +61,7 @@ object BotCore {
 
     Behaviors.receiveMessage {
       case SendPost =>
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(zoneId)
         val formatter = DateTimeFormatter.ofPattern("HH:mm")
         val timeStr = formatter.format(now)
         val message = s"$timeStr です。 お水飲みましたか?"
