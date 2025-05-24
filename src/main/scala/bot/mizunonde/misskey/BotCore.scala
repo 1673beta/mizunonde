@@ -5,7 +5,7 @@ import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
 
 import scala.concurrent.duration.*
-import java.time.{LocalDateTime, ZoneId}
+import java.time.{LocalDateTime, ZoneId, Duration}
 import java.time.format.DateTimeFormatter
 import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.http.scaladsl.model.*
@@ -32,6 +32,13 @@ object BotCore {
     implicit val executionContext: ExecutionContextExecutor = system.executionContext
     val zoneId = ZoneId.of(timezone)
 
+    def calcInitialDelay(): FiniteDuration = {
+      val now = LocalDateTime.now(zoneId)
+      val nextHour = now.plusHours(1).withMinute(0).withSecond(0).withNano(0)
+      val delay = java.time.Duration.between(now, nextHour)
+      FiniteDuration(delay.toMillis, MILLISECONDS)
+    }
+
     def postToMisskey(text: String): Unit = {
       val post = MisskeyPost(text, i = apiKey)
       val json = post.toJson
@@ -54,8 +61,10 @@ object BotCore {
       }
     }
 
+    val initialDelay = calcInitialDelay()
+
     context.system.scheduler.scheduleAtFixedRate(
-      initialDelay = 1.minute,
+      initialDelay = initialDelay,
       interval = 1.hours
     )(() => context.self ! SendPost)(context.executionContext)
 
