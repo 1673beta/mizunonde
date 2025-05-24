@@ -2,23 +2,12 @@ ThisBuild / version := "0.1.0-SNAPSHOT"
 
 ThisBuild / scalaVersion := "3.6.4"
 
-enablePlugins(JlinkPlugin)
+enablePlugins(JavaAppPackaging)
 
 lazy val root = (project in file("."))
   .settings(
     name := "mizunonde",
-    jlinkIgnoreMissingDependency := JlinkIgnore.everything,
-    jlinkOptions += "--compress=2",
-    jlinkModules ++= Seq(
-      "java.base",
-      "java.logging",
-      "java.naming",
-      "java.net.http",
-      "java.security.jgss",
-      "java.security.sasl",
-      "jdk.crypto.ec",
-      "jdk.security.auth"
-    )
+    Compile / mainClass := Some("bot.mizunonde.misskey.Main"),
   )
 
 libraryDependencies ++= Seq(
