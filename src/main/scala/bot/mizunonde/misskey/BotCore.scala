@@ -12,7 +12,7 @@ import org.apache.pekko.http.scaladsl.model.*
 import org.apache.pekko.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import spray.json.*
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success}
 
 object BotCore {
@@ -24,7 +24,7 @@ object BotCore {
   case class MisskeyPost(text: String, i: String)
 
   sealed trait Command
-  private case class PostCompleted(isSuccess: Boolean, message: String) extends Command
+  private case class PostCompleted(isSuccess: Boolean, message: String, responseJson: Option[String] = None) extends Command
   case object SendPost extends Command
 
   def apply(apiUrl: String, apiKey: String, timezone: String = "Asia/Tokyo"): Behavior[Command] = Behaviors.setup { context =>
@@ -44,6 +44,8 @@ object BotCore {
       val json = post.toJson
       val entity = HttpEntity(ContentTypes.`application/json`, post.toJson.compactPrint)
 
+      context.log.info("送信するJSON: {}", post.toJson.prettyPrint)
+
       val request = HttpRequest(
         method = HttpMethods.POST,
         uri = s"$apiUrl/notes/create",
@@ -51,13 +53,26 @@ object BotCore {
       )
 
       val responseFuture = Http().singleRequest(request)
-      context.pipeToSelf(responseFuture) {
-        case Success(response) if response.status.isSuccess() =>
-          PostCompleted(isSuccess = true, message = "Post successful")
-        case Success(response) if response.status.isFailure() =>
-          PostCompleted(isSuccess = false, message = s"Post failed: ${response.status}")
+
+      // レスポンスの処理を拡張
+      context.pipeToSelf(responseFuture.flatMap { response =>
+        response.status match {
+          case status if status.isSuccess() =>
+            response.entity.toStrict(5.seconds).map { strictEntity =>
+              val responseBody = strictEntity.data.utf8String
+              (true, status.toString, Some(responseBody))
+            }
+          case status =>
+            response.entity.toStrict(5.seconds).map { strictEntity =>
+              val responseBody = strictEntity.data.utf8String
+              (false, s"Post failed: $status", Some(responseBody))
+            }
+        }
+      }) {
+        case Success((isSuccess, message, responseBody)) =>
+          PostCompleted(isSuccess = isSuccess, message = message, responseJson = responseBody)
         case Failure(exception) =>
-          PostCompleted(isSuccess = false, message = s"Request failed: ${exception.getMessage}")
+          PostCompleted(isSuccess = false, message = s"リクエスト失敗: ${exception.getMessage}")
       }
     }
 
@@ -79,11 +94,13 @@ object BotCore {
         postToMisskey(message)
         Behaviors.same
 
-      case PostCompleted(success, message) =>
+      case PostCompleted(success, message, responseJson) =>
         if (success) {
           context.log.info(message)
+          responseJson.foreach(json => context.log.info("レスポンスJSON: {}", json))
         } else {
           context.log.error(message)
+          responseJson.foreach(json => context.log.error("エラーレスポンス: {}", json))
         }
         Behaviors.same
     }
