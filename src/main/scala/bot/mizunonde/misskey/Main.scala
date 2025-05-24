@@ -17,5 +17,7 @@ object Main extends App {
 
   println("Bot started.")
 
+  system ! BotCore.SendPost
+
   Thread.currentThread().join()
 }

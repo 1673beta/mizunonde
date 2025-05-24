@@ -12,13 +12,22 @@ object ConfigLoader {
   def loadEnv(): Unit = {
     val envFile = new File(".env")
     if (envFile.exists()) {
-      val properties = new Properties()
-      properties.load(Files.newBufferedReader(Paths.get(".env")))
-
-      properties.asScala.foreach { case (key, value) =>
-        if (!sys.env.contains(key))
-          System.setProperty(key, value)
+      try {
+        val lines = Files.readAllLines(Paths.get(".env")).asScala
+        lines.foreach { line =>
+          val parts = line.split("=", 2)
+          if (parts.length == 2) {
+            val key = parts(0).trim
+            val value = parts(1).trim
+            if (!sys.env.contains(key)) {
+              System.setProperty(key, value)
+            }
+          }
+        }
+      } catch {
+        case e: Exception => println(s"Error loading .env file: ${e.getMessage}")
       }
+
     }
   }
 
